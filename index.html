@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOYOTA L&F | KIVA 混合式訓練系統DEMO</title>
+    <!-- 引入 Font Awesome 6.4.0 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- 1. 全局設定 (Toyota 風格) --- */
+        :root {
+            --toyota-red: #EB0A1E;
+            --toyota-dark-red: #B80012;
+            --toyota-black: #000000;
+            --toyota-gray: #333333;
+            --bg-light: #F4F4F4;
+            --white: #FFFFFF;
+            --section-basic: #4CAF50;
+            --section-core: #2196F3;
+            --section-assess: #FF9800;
+            --section-debug: #EB0A1E;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-light);
+            color: var(--toyota-black);
+        }
+
+        /* --- 2. 導航列 --- */
+        header {
+            background-color: var(--toyota-black);
+            color: var(--white);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .logo { font-size: 1.2rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .logo span { color: var(--toyota-red); }
+        .user-status { font-size: 0.9rem; color: #ccc; }
+
+        /* --- 3. 首頁：身份選擇區 --- */
+        #role-selection-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 90vh;
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
+        }
+
+        .role-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 900px;
+            width: 100%;
+            margin-top: 40px;
+        }
+
+        .role-card {
+            background: var(--white);
+            padding: 30px 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-top: 5px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        .role-card:hover { transform: translateY(-5px); border-top-color: var(--toyota-red); }
+        
+        /* Icon 樣式調整 */
+        .role-icon { 
+            font-size: 3.5rem; 
+            color: var(--toyota-gray); 
+            margin-bottom: 15px; 
+            transition: color 0.3s;
+        }
+        .role-card:hover .role-icon { color: var(--toyota-red); }
+
+        .role-title { font-size: 1.2rem; font-weight: bold; color: #333; }
+        .role-desc { font-size: 0.9rem; color: #666; margin-top: 5px; }
+
+        /* --- 4. 主儀表板 (四大區塊) --- */
+        #dashboard-screen {
+            display: none;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .dashboard-header {
+            margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .back-btn { background: none; border: 1px solid #ccc; padding: 5px 10px; border-radius: 5px; cursor: pointer; color: #666; }
+
+        .four-pillars-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+        }
+        @media (max-width: 768px) { .four-pillars-grid { grid-template-columns: 1fr; } }
+
+        .pillar-card {
+            background: var(--white);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+        .pillar-card:hover { transform: scale(1.02); }
+
+        .pillar-header {
+            padding: 20px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .pillar-header h3 { margin: 0; font-size: 1.5rem; }
+        .pillar-icon { font-size: 2rem; opacity: 0.9; }
+        
+        .pillar-body { padding: 20px; flex-grow: 1; }
+        .pillar-body p { color: #666; font-size: 0.95rem; line-height: 1.5; margin: 0; }
+        .pillar-tags { margin-top: 15px; }
+        .tag { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; background: #eee; color: #555; margin-right: 5px; }
+
+        .p-basic .pillar-header { background: var(--section-basic); }
+        .p-core .pillar-header { background: var(--section-core); }
+        .p-assess .pillar-header { background: var(--section-assess); }
+        .p-debug .pillar-header { background: var(--section-debug); }
+
+        /* --- 5. 內容模態視窗 --- */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #fff; width: 95%; max-width: 1000px; height: 90vh;
+            border-radius: 10px; overflow-y: auto; position: relative;
+            display: flex; flex-direction: column;
+        }
+        .modal-header {
+            background: var(--toyota-black); color: white; padding: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-body { padding: 20px; flex-grow: 1; overflow-y: auto; }
+        .close-modal { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+        /* --- 進度條樣式 --- */
+        .progress-wrapper {
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .progress-info {
+            display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; color: #555;
+        }
+        .progress-bar-bg {
+            width: 100%; height: 12px; background: #e0e0e0; border-radius: 6px; overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%; width: 0%; background: var(--toyota-red); transition: width 0.5s ease;
+        }
+        
+        /* --- 題目與按鈕樣式 --- */
+        .basic-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%; }
+        @media (max-width: 768px) { .basic-layout { grid-template-columns: 1fr; } }
+        
+        .video-placeholder {
+            background: #000; color: white; display: flex; align-items: center; justify-content: center;
+            height: 300px; border-radius: 8px; position: relative;
+        }
+        .quiz-container { background: #f9f9f9; padding: 20px; border-radius: 8px; height: 100%; overflow-y: auto; }
+        
+        /* 題目卡片 */
+        .tf-question { margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 15px; display: none; animation: fadeIn 0.5s; }
+        .tf-question.active { display: block; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .tf-options button {
+            padding: 10px 25px; margin-right: 10px; border: 1px solid #ccc; border-radius: 25px; cursor: pointer; background: white;
+            font-size: 1rem; transition: all 0.2s;
+        }
+        .tf-options button:hover { background: #f0f0f0; }
+        
+        .tf-explanation {
+            display: none; margin-top: 15px; padding: 15px; background: #e8f5e9; 
+            border-left: 4px solid #4CAF50; font-size: 0.95rem; color: #333; border-radius: 4px;
+        }
+
+        .next-q-btn {
+            margin-top: 15px; padding: 10px 20px; background: var(--toyota-red); color: white;
+            border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none;
+        }
+        .next-q-btn:hover { background: #c40010; }
+        
+        .next-stage-btn {
+            margin-top: 15px; padding: 12px 30px; background: var(--section-core); color: white;
+            border: none; border-radius: 30px; cursor: pointer; font-weight: bold; display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;
+        }
+        .next-stage-btn:hover { background: #1976D2; transform: scale(1.02); }
+
+        /* 核心、評量、排錯樣式 */
+        .interactive-video-container { width: 100%; max-width: 800px; margin: 0 auto; position: relative; }
+        .video-timeline { height: 10px; background: #ddd; margin-top: 10px; position: relative; border-radius: 5px; }
+        .video-progress { width: 40%; height: 100%; background: var(--toyota-red); border-radius: 5px; }
+        .question-marker { width: 14px; height: 14px; background: orange; border-radius: 50%; position: absolute; top: -2px; left: 40%; cursor: pointer; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        .popup-quiz { position: absolute; top: 20%; left: 10%; right: 10%; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); text-align: center; border-top: 5px solid var(--toyota-red); }
+        .scene-box { width: 100%; height: 400px; background: #ddd; position: relative; background-image: url('https://placehold.co/800x400/333/999?text=KIVA+Working+Zone'); background-size: cover; border-radius: 8px; }
+        .hazard-spot { width: 50px; height: 50px; border: 2px dashed yellow; position: absolute; bottom: 20px; right: 30%; cursor: pointer; background: rgba(255,255,0,0.2); }
+        .troubleshoot-screen { background: #222; color: #0f0; padding: 30px; font-family: 'Courier New', monospace; height: 350px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .error-alert { border: 2px solid red; color: red; padding: 20px; margin-bottom: 20px; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        .ts-options button { background: #444; color: white; border: 1px solid #666; padding: 10px 20px; margin: 5px; cursor: pointer; font-family: inherit; }
+        .ts-options button:hover { background: #666; }
+
+    </style>
+</head>
+<body>
+
+    <!-- 1. Header -->
+    <header>
+        <div class="logo">
+            <i class="fas fa-cubes"></i>
+            TOYOTA L&F <span>KIVA 混合式訓練系統DEMO</span>
+        </div>
+        <div class="user-status" id="user-role-display">尚未登入</div>
+    </header>
+
+    <!-- 2. 身份選擇 (Role Selection) -->
+    <div id="role-selection-screen">
+        <h1 style="font-size: 2rem; margin-bottom: 10px;">請選擇您的操作身份</h1>
+        <p style="color: #666;">系統將根據您的職責載入對應的教材模組</p>
+
+        <div class="role-grid">
+            <!-- A. 廠房作業員 (更新為標準工安安全帽圖示) -->
+            <div class="role-card" onclick="enterDashboard('作業員')">
+                <div class="role-icon">
+                    <!-- 修正：使用標準免費圖示 fa-helmet-safety -->
+                    <i class="fas fa-helmet-safety"></i>
+                </div>
+                <div class="role-title">廠房作業員</div>
+                <div class="role-desc">B2B 現場操作人員</div>
+            </div>
+
+            <!-- B. 維修工程師 -->
+            <div class="role-card" onclick="enterDashboard('工程師')">
+                <div class="role-icon"><i class="fas fa-tools"></i></div>
+                <div class="role-title">維修工程師</div>
+                <div class="role-desc">技術支援與維護</div>
+            </div>
+
+            <!-- C. 管理人員 -->
+            <div class="role-card" onclick="enterDashboard('管理者')">
+                <div class="role-icon"><i class="fas fa-user-tie"></i></div>
+                <div class="role-title">管理人員</div>
+                <div class="role-desc">數據與成效追蹤</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 主儀表板 (四大區塊) -->
+    <div id="dashboard-screen">
+        <div class="dashboard-header">
+            <div>
+                <h2 id="dashboard-title">作業員訓練中心</h2>
+                <p>請依序完成以下學習階段</p>
+            </div>
+            <button class="back-btn" onclick="location.reload()">登出</button>
+        </div>
+
+        <div class="four-pillars-grid">
+            
+            <!-- A. 基礎階段 -->
+            <div class="pillar-card p-basic" onclick="openContent('basic')">
+                <div class="pillar-header">
+                    <div class="pillar-icon"><i class="fas fa-shield-alt"></i></div>
+                    <h3>1. 基礎認知</h3>
+                </div>
+                <div class="pillar-body">
+                    <p>工安規範、環境識別與設備基礎構造。</p>
+                    <div class="pillar-tags">
+                        <span class="tag">#工安</span> <span class="tag">#是非題詳解</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- B. 核心階段 -->
+            <div class="pillar-card p-core" onclick="openContent('core')">
+                <div class="pillar-header">
+                    <div class="pillar-icon"><i class="fas fa-play-circle"></i></div>
+                    <h3>2. 核心 SOP</h3>
+                </div>
+                <div class="pillar-body">
+                    <p>標準操作流程微課程。影片穿插互動測驗。</p>
+                    <div class="pillar-tags">
+                        <span class="tag">#互動影片</span> <span class="tag">#SOP流程</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- C. 評量階段 -->
+            <div class="pillar-card p-assess" onclick="openContent('assess')">
+                <div class="pillar-header">
+                    <div class="pillar-icon"><i class="fas fa-clipboard-check"></i></div>
+                    <h3>3. 綜合評量</h3>
+                </div>
+                <div class="pillar-body">
+                    <p>模擬實際突發狀況，測試決策能力。</p>
+                    <div class="pillar-tags">
+                        <span class="tag">#情境模擬</span> <span class="tag">#決策樹</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- D. 快速排錯 -->
+            <div class="pillar-card p-debug" onclick="openContent('debug')">
+                <div class="pillar-header">
+                    <div class="pillar-icon"><i class="fas fa-first-aid"></i></div>
+                    <h3>4. 快速排錯</h3>
+                </div>
+                <div class="pillar-body">
+                    <p>現場故障代碼查詢與緊急處置指南。</p>
+                    <div class="pillar-tags">
+                        <span class="tag">#故障代碼</span> <span class="tag">#即時救援</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 4. 內容模態視窗 -->
+    <div id="content-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title" style="margin:0">單元名稱</h3>
+                <button class="close-modal" onclick="closeModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- 內容動態注入 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 導航邏輯 ---
+        function enterDashboard(role) {
+            document.getElementById('role-selection-screen').style.display = 'none';
+            document.getElementById('dashboard-screen').style.display = 'block';
+            document.getElementById('user-role-display').innerText = role;
+            document.getElementById('dashboard-title').innerText = role + ' 訓練中心';
+        }
+
+        function closeModal() {
+            document.getElementById('content-modal').style.display = 'none';
+        }
+
+        // --- 2. 內容渲染邏輯 ---
+        function openContent(type) {
+            const modal = document.getElementById('content-modal');
+            const body = document.getElementById('modal-body');
+            const title = document.getElementById('modal-title');
+            
+            modal.style.display = 'flex';
+            body.innerHTML = ''; // 清空
+
+            if (type === 'basic') renderBasic(title, body);
+            else if (type === 'core') renderCore(title, body);
+            else if (type === 'assess') renderAssess(title, body);
+            else if (type === 'debug') renderDebug(title, body);
+        }
+
+        // --- A. 基礎階段 (影片 + 步驟式是非題 + 進度條) ---
+        // 全域變數追蹤進度
+        let basicQIndex = 0;
+        
+        function renderBasic(titleEl, container) {
+            titleEl.innerText = "【基礎】工安與設備認識";
+            basicQIndex = 0; // 重置
+
+            container.innerHTML = `
+                <div class="basic-layout">
+                    <div>
+                        <h4>單元導讀影片</h4>
+                        <div class="video-placeholder">
+                            <i class="fas fa-video" style="font-size:3rem;"></i>
+                            <p style="margin-top:10px;">(此處播放工安觀念影片)</p>
+                        </div>
+                    </div>
+                    <div class="quiz-container">
+                        <!-- 進度條 -->
+                        <div class="progress-wrapper">
+                            <div class="progress-info">
+                                <span>學習進度</span>
+                                <span id="basic-progress-text">0/2</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="basic-progress-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <h4 style="margin-top:0;">快速自我檢測</h4>
+                        <p style="font-size:0.9rem; color:#666;">請依序回答下列問題：</p>
+                        
+                        <!-- 題目 1 -->
+                        <div id="bq-1" class="tf-question active">
+                            <p><strong>Q1.</strong> 進入 KIVA 作業區前，只要穿著反光背心即可，不需要確認機台是否斷電？</p>
+                            <div class="tf-options">
+                                <button onclick="handleBasicAnswer(this, false, 1)">O (是)</button>
+                                <button onclick="handleBasicAnswer(this, true, 1)">X (否)</button>
+                            </div>
+                            <div class="tf-explanation">
+                                <strong>💡 詳解：</strong> 錯誤。進入紅區前，除了穿戴防護裝備，<strong>必須</strong>確認該區段機台已按下緊急停止或斷電，以免發生夾傷意外。
+                                <button class="next-q-btn" onclick="nextBasicQ(2)">下一題 <i class="fas fa-arrow-down"></i></button>
+                            </div>
+                        </div>
+
+                         <!-- 題目 2 -->
+                        <div id="bq-2" class="tf-question">
+                            <p><strong>Q2.</strong> 發現地上有油漬時，為了效率可以先跨過去，等下班再清？</p>
+                            <div class="tf-options">
+                                <button onclick="handleBasicAnswer(this, false, 2)">O (是)</button>
+                                <button onclick="handleBasicAnswer(this, true, 2)">X (否)</button>
+                            </div>
+                            <div class="tf-explanation">
+                                <strong>💡 詳解：</strong> 錯誤。KIVA 輪胎沾染油漬會導致打滑迷航，甚至造成碰撞。應<strong>立即暫停作業</strong>並依清潔 SOP 處理。
+                                <button class="next-stage-btn" onclick="openContent('core')">完成單元，前往核心 SOP <i class="fas fa-arrow-right"></i></button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 處理回答與顯示下一題邏輯
+        window.handleBasicAnswer = function(btn, isCorrect, qIndex) {
+            const parent = btn.parentElement;
+            const buttons = parent.getElementsByTagName('button');
+            for(let b of buttons) {
+                b.style.opacity = '0.5';
+                b.disabled = true;
+            }
+            btn.style.opacity = '1';
+            btn.style.background = isCorrect ? '#d4edda' : '#f8d7da';
+            btn.style.borderColor = isCorrect ? 'green' : 'red';
+            
+            const exp = parent.nextElementSibling;
+            exp.style.display = 'block';
+            
+            // 顯示該題的「下一題/下一關」按鈕
+            const nextBtn = exp.querySelector('button');
+            if(nextBtn) nextBtn.style.display = 'inline-block';
+
+            // 更新進度條
+            updateBasicProgress(qIndex);
+        }
+
+        window.nextBasicQ = function(nextQIndex) {
+            document.getElementById('bq-' + (nextQIndex - 1)).style.display = 'none';
+            const nextQ = document.getElementById('bq-' + nextQIndex);
+            nextQ.classList.add('active');
+        }
+
+        function updateBasicProgress(qIndex) {
+            const total = 2;
+            const pct = (qIndex / total) * 100;
+            document.getElementById('basic-progress-fill').style.width = pct + '%';
+            document.getElementById('basic-progress-text').innerText = `${qIndex}/${total}`;
+        }
+
+        // --- B. 核心階段 ---
+        function renderCore(titleEl, container) {
+            titleEl.innerText = "【核心】電池更換 SOP (互動影片)";
+            container.innerHTML = `
+                <div class="interactive-video-container">
+                    <div class="video-placeholder" style="height:400px; background:#222;">
+                        <i class="fas fa-play" style="font-size:3rem; color:white;"></i>
+                        <div class="popup-quiz">
+                            <h4 style="color:#EB0A1E; margin-top:0;">🛑 知識檢查點</h4>
+                            <p style="color:#666;">在拔除電池連接線之前，應該先做什麼動作？</p>
+                            <div style="display:grid; gap:10px; margin-top:15px;">
+                                <button style="padding:10px; cursor:pointer;" onclick="alert('答錯囉！請重看 01:20 處')">A. 直接用力拔除</button>
+                                <button style="padding:10px; cursor:pointer;" onclick="alert('正確！斷路器能保護電路安全。')">B. 關閉電池模組上的斷路器 (Breaker)</button>
+                                <button style="padding:10px; cursor:pointer;" onclick="alert('答錯囉！')">C. 通知主管</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="video-timeline">
+                        <div class="video-progress"></div>
+                        <div class="question-marker" title="測驗點"></div>
+                    </div>
+                    <div style="margin-top:15px; display:flex; justify-content:space-between; color:#666; font-size:0.9rem;">
+                        <span>01:45 / 03:30</span>
+                        <span><i class="fas fa-volume-up"></i> <i class="fas fa-expand"></i></span>
+                    </div>
+                </div>
+                <div style="margin-top:20px; padding:15px; background:#f0f0f0; border-radius:8px;">
+                    <h4>本單元學習重點：</h4>
+                    <ul>
+                        <li>斷電程序的正確順序</li>
+                        <li>電池模組的搬運姿勢 (防腰傷)</li>
+                        <li>接頭歸位確認</li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        // --- C. 評量階段 ---
+        function renderAssess(titleEl, container) {
+            titleEl.innerText = "【評量】突發狀況綜合測驗";
+            container.innerHTML = `
+                <div style="text-align:center; margin-bottom:20px;">
+                    <p>請觀察下方模擬畫面，找出<strong>異常狀況</strong>並點擊進行處置。</p>
+                </div>
+                <div class="scene-box">
+                    <div class="hazard-spot" onclick="alert('✅ 判斷正確！\\n\\n發現異物入侵軌道。\\n正確處置：\\n1. 按下急停鈕\\n2. 移除異物\\n3. 確認無損後復歸')"></div>
+                    <div style="position:absolute; bottom:10px; left:10px; color:white; background:rgba(0,0,0,0.5); padding:5px;">
+                        <i class="fas fa-camera"></i> 現場監控視角 Cam-03
+                    </div>
+                </div>
+                <div style="margin-top:20px; display:flex; gap:10px; justify-content:center;">
+                    <button class="back-btn" style="background:#EB0A1E; color:white; border:none; padding:10px 30px;">提交決策</button>
+                </div>
+            `;
+        }
+
+        // --- D. 快速排錯 ---
+        function renderDebug(titleEl, container) {
+            titleEl.innerText = "【排錯】現場代碼速查";
+            container.innerHTML = `
+                <div style="max-width:600px; margin:0 auto;">
+                    <input type="text" placeholder="輸入錯誤代碼 (例: 1348)..." style="width:100%; padding:15px; font-size:1.1rem; margin-bottom:20px; border:2px solid #ccc; border-radius:8px;">
+                    <div style="background:#f9f9f9; border-left:5px solid #EB0A1E; padding:15px; margin-bottom:10px;">
+                        <h4 style="margin:0 0 5px 0;">🔴 Error 1348: Position Lost (迷航)</h4>
+                        <p style="margin:0; font-size:0.9rem; color:#666;">原因：Wi-Fi 訊號瞬斷或輪胎打滑。</p>
+                        <div style="margin-top:10px;">
+                            <button style="background:#333; color:white; border:none; padding:5px 10px; cursor:pointer;">查看排除步驟</button>
+                        </div>
+                    </div>
+                    <div style="background:#f9f9f9; border-left:5px solid #FF9800; padding:15px; margin-bottom:10px;">
+                        <h4 style="margin:0 0 5px 0;">🟠 Error 201: Low Battery (低電量)</h4>
+                        <p style="margin:0; font-size:0.9rem; color:#666;">原因：未自動返回充電樁。</p>
+                    </div>
+                </div>
+            `;
+        }
+
+    </script>
+</body>
+</html>
